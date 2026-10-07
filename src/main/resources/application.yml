@@ -1,3 +1,7 @@
+server:
+  # Local-only by default; the docker profile binds to all interfaces.
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
 spring:
   application:
     name: rest-api-mcp-demo
@@ -33,3 +37,25 @@ spring:
           completion: false
         streamable-http:
           mcp-endpoint: /mcp
+
+app:
+  security:
+    # Shared key for /api/** and /mcp. Empty = authentication disabled (local demo only).
+    api-key: ${APP_API_KEY:}
+  mcp:
+    # Browser Origin hosts allowed to call /mcp (DNS-rebinding protection).
+    allowed-origin-hosts: localhost,127.0.0.1,[::1]
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Employee & Department REST API and MCP server

@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -15,6 +16,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.annotation.DirtiesContext;
@@ -35,6 +37,9 @@ class McpServerContractTest {
 
     @LocalServerPort
     int port;
+
+    @Autowired
+    MeterRegistry meterRegistry;
 
     McpSyncClient client;
 
@@ -239,6 +244,19 @@ class McpServerContractTest {
         var message = text(error("get_employee", Map.of("employeeId", 999999)));
 
         assertThat(message).doesNotContain("Exception", "com.restmcp", "SQL");
+    }
+
+    // --- observability -----------------------------------------------------------------------------------
+
+    @Test
+    void toolCallsAreTimedByToolAndOutcome() {
+        ok("get_employee", Map.of("employeeId", 2));
+        error("get_employee", Map.of("employeeId", 424242));
+
+        assertThat(meterRegistry.get("mcp.tool.calls").tags("tool", "get_employee", "outcome", "success").timer()
+                .count()).isPositive();
+        assertThat(meterRegistry.get("mcp.tool.calls").tags("tool", "get_employee", "outcome", "error").timer()
+                .count()).isPositive();
     }
 
     // --- resources and prompts -----------------------------------------------------------------------------

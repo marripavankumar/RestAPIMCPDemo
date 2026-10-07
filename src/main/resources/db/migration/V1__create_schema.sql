@@ -4,8 +4,8 @@ CREATE TABLE department (
     name        VARCHAR(100) NOT NULL UNIQUE,
     location    VARCHAR(100),
     manager_id  BIGINT,
-    created_at  TIMESTAMP    NOT NULL,
-    updated_at  TIMESTAMP    NOT NULL
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE employee (
@@ -19,8 +19,8 @@ CREATE TABLE employee (
     status        VARCHAR(20)    NOT NULL,
     department_id BIGINT REFERENCES department (id),
     version       BIGINT         NOT NULL DEFAULT 0,
-    created_at    TIMESTAMP      NOT NULL,
-    updated_at    TIMESTAMP      NOT NULL
+    created_at    TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at    TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 ALTER TABLE department
