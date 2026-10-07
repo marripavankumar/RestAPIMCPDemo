@@ -8,12 +8,15 @@ import com.restmcp.demo.department.DepartmentRepository;
 import com.restmcp.demo.employee.dto.EmployeeRequest;
 import com.restmcp.demo.employee.dto.EmployeeResponse;
 import com.restmcp.demo.employee.dto.EmployeeSearchCriteria;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 @Service
+@Validated
 @Transactional(readOnly = true)
 public class EmployeeService {
 
@@ -40,7 +43,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    public EmployeeResponse create(EmployeeRequest request) {
+    public EmployeeResponse create(@Valid EmployeeRequest request) {
         if (employees.existsByEmailIgnoreCase(request.email())) {
             throw duplicateEmail(request.email());
         }
@@ -56,7 +59,7 @@ public class EmployeeService {
     }
 
     @Transactional
-    public EmployeeResponse update(Long id, EmployeeRequest request) {
+    public EmployeeResponse update(Long id, @Valid EmployeeRequest request) {
         var employee = load(id);
         if (!employee.getEmail().equalsIgnoreCase(request.email())
                 && employees.existsByEmailIgnoreCase(request.email())) {

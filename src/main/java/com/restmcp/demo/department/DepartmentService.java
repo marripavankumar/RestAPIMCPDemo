@@ -16,11 +16,14 @@ import com.restmcp.demo.department.dto.DepartmentSummary;
 import com.restmcp.demo.employee.Employee;
 import com.restmcp.demo.employee.EmployeeRepository;
 import com.restmcp.demo.employee.dto.EmployeeResponse;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 @Service
+@Validated
 @Transactional(readOnly = true)
 public class DepartmentService {
 
@@ -46,7 +49,7 @@ public class DepartmentService {
     }
 
     @Transactional
-    public DepartmentResponse create(DepartmentRequest request) {
+    public DepartmentResponse create(@Valid DepartmentRequest request) {
         String code = normalizeCode(request.code());
         if (departments.existsByCodeIgnoreCase(code)) {
             throw duplicateCode(code);
@@ -59,7 +62,7 @@ public class DepartmentService {
     }
 
     @Transactional
-    public DepartmentResponse update(Long id, DepartmentRequest request) {
+    public DepartmentResponse update(Long id, @Valid DepartmentRequest request) {
         var department = load(id);
         String code = normalizeCode(request.code());
         if (!department.getCode().equalsIgnoreCase(code) && departments.existsByCodeIgnoreCase(code)) {

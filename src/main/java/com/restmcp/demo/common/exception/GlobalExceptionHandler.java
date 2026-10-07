@@ -3,6 +3,7 @@ package com.restmcp.demo.common.exception;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -51,6 +52,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     ProblemDetail handleBusinessRule(BusinessRuleException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed.");
+        problem.setProperty("errors", ex.getConstraintViolations().stream()
+                .map(v -> Map.of("field", String.valueOf(v.getPropertyPath()), "message", v.getMessage()))
+                .toList());
+        return problem;
     }
 
     @ExceptionHandler(PropertyReferenceException.class)
