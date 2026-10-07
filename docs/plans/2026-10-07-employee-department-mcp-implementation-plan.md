@@ -1,5 +1,9 @@
 # Employee & Department REST + MCP Server — Implementation Plan
 
+> **Status (2026-10-07):** Phases 0–8 executed on branch `feature/emp-dept-mcp`. Built on Spring Boot 4.1.1 + Spring AI 2.0.1
+> (not 3.5 + 1.1) using `@McpTool`. Every difference from this plan is listed in
+> [ARCHITECTURE.md §15](../architecture/ARCHITECTURE.md#15-implementation-notes-where-the-build-differs-from-the-draft).
+
 > **For the implementer:** work through the phases in order. Each task follows the same loop:
 > **write a failing test → run it and watch it fail → write the minimum code → run it and watch it pass → commit.**
 > Don't start a phase until the previous phase's exit criteria are green.

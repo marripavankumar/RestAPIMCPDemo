@@ -2,14 +2,15 @@
 
 | Item | Value |
 |---|---|
-| Status | Draft for implementation |
+| Status | Implemented (Phases 0–8). See §15 for where the build differs from the original draft |
 | Date | 2026-10-07 |
-| Stack | Java 21, Spring Boot 3.5.x, Spring AI 1.1.x (MCP Server starter), Spring Data JPA, H2/PostgreSQL, Flyway |
+| Stack | Java 21, Spring Boot 4.1.1, Spring AI 2.0.1 (MCP Server WebMVC starter, MCP Java SDK 2.0), Spring Data JPA, H2/PostgreSQL, Flyway, springdoc 3.1 |
 | Companion plan | [../plans/2026-10-07-employee-department-mcp-implementation-plan.md](../plans/2026-10-07-employee-department-mcp-implementation-plan.md) |
 
-> Version note: pin the exact Spring Boot / Spring AI pair in Phase 0 from start.spring.io. The design depends only on the
-> `spring-ai-starter-mcp-server-webmvc` starter, the `@Tool` / `ToolCallbackProvider` API, and the
-> `spring.ai.mcp.server.*` properties, all of which are stable in Spring AI 1.1.
+> Version note: versions were pinned in Phase 0 from start.spring.io (Boot 4.1.1 + Spring AI 2.0.1, the current pair on
+> 2026-10-07). The MCP layer depends on the `spring-ai-starter-mcp-server-webmvc` starter, the `@McpTool` /
+> `@McpResource` / `@McpPrompt` annotations (`org.springframework.ai.mcp.annotation`) and the
+> `spring.ai.mcp.server.*` properties.
 
 ---
 
@@ -83,14 +84,14 @@ flowchart LR
 | # | Decision | Chosen option | Alternatives considered | Rationale |
 |---|---|---|---|---|
 | ADR-01 | How MCP tools reach business logic | **In-process: MCP tools call the same `Service` layer as REST controllers** | Separate MCP gateway app that calls the REST API over HTTP | One deployable, no double serialization, one validation path, transactional consistency. REST and MCP are two *adapters* over one core (hexagonal style). The gateway variant is described in §11 if the REST API must stay untouched or lives elsewhere. |
-| ADR-02 | MCP framework | **Spring AI MCP Server Boot Starter (WebMVC)** | Raw MCP Java SDK; Spring AI WebFlux starter | Auto-configuration, `@Tool` annotation scanning, JSON schema generation from method signatures, fits a servlet (WebMVC) app that already serves REST. |
+| ADR-02 | MCP framework | **Spring AI MCP Server Boot Starter (WebMVC) with `@McpTool` annotations** | Generic `@Tool` + `ToolCallbackProvider`; raw MCP Java SDK; WebFlux starter | Auto-configuration and annotation scanning, JSON schema generation from method signatures, and MCP tool annotations (`readOnlyHint`, `destructiveHint`) that hosts use when deciding to ask for confirmation. Fits a servlet (WebMVC) app that already serves REST. |
 | ADR-03 | Remote transport | **Streamable HTTP** at `/mcp` | Legacy HTTP+SSE (`/sse` + `/mcp/message`), stateless HTTP | Streamable HTTP is the current MCP spec transport; one endpoint; supported by Claude Code, VS Code, Inspector. SSE stays a config switch for old clients. |
 | ADR-04 | Local transport | **STDIO via Spring profile `stdio`** | Only HTTP + `mcp-remote` bridge | Claude Desktop and similar hosts launch local servers as processes. The `stdio` profile disables the web server and console logging so stdout stays a clean JSON-RPC channel. |
 | ADR-05 | Server type | **SYNC** | ASYNC (Reactor) | Blocking JPA calls; simpler code; adequate for the expected load. |
 | ADR-06 | Package layout | **Package-by-feature** (`department`, `employee`, `mcp`, `common`) | Package-by-layer | Keeps each aggregate cohesive; the `mcp` and `web` adapters stay thin. |
 | ADR-07 | Schema management | **Flyway** migrations + seed data | `ddl-auto=update` | Repeatable, reviewable schema; same scripts for H2 and PostgreSQL. |
 | ADR-08 | Error contract | REST: **RFC 9457 `ProblemDetail`**. MCP: **tool result with `isError=true`** and a human-readable message | Custom error JSON | Standard formats; LLM clients can read the error text and recover. |
-| ADR-09 | Security (sample level) | **API key header** (`X-API-KEY`) on `/api/**` and `/mcp/**`, localhost binding + Origin check for MCP | Full OAuth 2.1 (MCP authorization spec) | Easy for any client to configure. The OAuth 2.1 resource-server upgrade path is in §9. |
+| ADR-09 | Security (sample level) | **API key** (`X-API-KEY` or `Bearer`) on `/api/**` and `/mcp`, enforced when `APP_API_KEY` is set; localhost binding + Origin check for MCP always on | Full OAuth 2.1 (MCP authorization spec) | Easy for any client to configure. With no key the server is open but bound to 127.0.0.1 and logs a warning, so the local demo needs no setup. The OAuth 2.1 resource-server upgrade path is in §9. |
 | ADR-10 | DTO boundary | **Java records** for request/response; entities never leave the service layer | Expose entities | Avoids lazy-loading/recursion problems; gives clean tool JSON schemas. |
 
 ---
@@ -142,9 +143,9 @@ flowchart LR
     subgraph Inbound["Inbound adapters"]
         DC["DepartmentController"]
         EC["EmployeeController"]
-        DT["DepartmentMcpTools<br/>@Tool methods"]
-        ET["EmployeeMcpTools<br/>@Tool methods"]
-        RES["McpResourcesConfig<br/>resources + prompts"]
+        DT["DepartmentMcpTools<br/>@McpTool methods"]
+        ET["EmployeeMcpTools<br/>@McpTool methods"]
+        RES["OrgResources + OrgPrompts<br/>@McpResource / @McpPrompt"]
         GEH["GlobalExceptionHandler<br/>ProblemDetail"]
     end
 
@@ -162,7 +163,7 @@ flowchart LR
     end
 
     subgraph Framework["Spring AI MCP auto-configuration"]
-        TCP["ToolCallbackProvider bean<br/>MethodToolCallbackProvider"]
+        TCP["Annotation scanner<br/>builds tool, resource, prompt specs"]
         MCPS["McpSyncServer"]
         TR["Transport provider<br/>Streamable HTTP or STDIO"]
     end
@@ -177,10 +178,10 @@ flowchart LR
     ES --> DR
     DS --> MAP
     ES --> MAP
-    DT -. "registered via" .-> TCP
-    ET -. "registered via" .-> TCP
+    DT -. "scanned by" .-> TCP
+    ET -. "scanned by" .-> TCP
+    RES -. "scanned by" .-> TCP
     TCP --> MCPS
-    RES --> MCPS
     MCPS --> TR
     DC -. "errors" .-> GEH
     EC -. "errors" .-> GEH
@@ -200,6 +201,7 @@ src/main/java/com/restmcp/demo/
 ├── department/
 │   ├── Department.java              (JPA entity)
 │   ├── DepartmentRepository.java
+│   ├── DepartmentStats.java, DepartmentHeadcount.java   (query projections)
 │   ├── DepartmentService.java
 │   ├── DepartmentController.java
 │   └── dto/  DepartmentRequest, DepartmentResponse, DepartmentSummary
@@ -207,21 +209,27 @@ src/main/java/com/restmcp/demo/
 │   ├── Employee.java                (JPA entity)
 │   ├── EmployeeStatus.java          (enum)
 │   ├── EmployeeRepository.java
+│   ├── EmployeeSpecifications.java  (dynamic search filter)
 │   ├── EmployeeService.java
 │   ├── EmployeeController.java
 │   └── dto/  EmployeeRequest, EmployeeResponse, EmployeeSearchCriteria
 ├── mcp/
 │   ├── DepartmentMcpTools.java
 │   ├── EmployeeMcpTools.java
-│   ├── McpServerConfig.java         (ToolCallbackProvider, resources, prompts)
+│   ├── OrgResources.java            (@McpResource: directory + roster template)
+│   ├── OrgPrompts.java              (@McpPrompt: department_report, onboard_employee)
+│   ├── McpToolMetricsAspect.java    (timer + log line per tool call)
 │   └── McpOriginValidationFilter.java
 └── config/
-    ├── SecurityConfig.java          (API key filter)
+    ├── WebSecurityConfig.java       (registers the filters, web mode only)
+    ├── ApiKeyAuthFilter.java
     └── OpenApiConfig.java
 src/main/resources/
 ├── application.yml
 ├── application-stdio.yml
+├── application-legacy-sse.yml
 ├── application-postgres.yml
+├── logback-spring.xml           (no console output in the stdio profile)
 └── db/migration/  V1__create_schema.sql, V2__seed_data.sql
 ```
 
@@ -515,34 +523,28 @@ public class EmployeeMcpTools {
         this.employeeService = employeeService;
     }
 
-    @Tool(name = "transfer_employee",
-          description = "Move an employee to a different department. Use get_employee or search_employees first "
-                      + "to find the employee id, and list_departments to find the target department id. "
-                      + "Returns the updated employee.")
+    @McpTool(name = "transfer_employee",
+            description = "Move an employee to a different department. Find the employee id with "
+                    + "search_employees and the department id with list_departments first. TERMINATED employees "
+                    + "cannot be moved. Returns the updated employee.",
+            annotations = @McpAnnotations(readOnlyHint = false, destructiveHint = false, idempotentHint = false,
+                    openWorldHint = false))
     public EmployeeResponse transferEmployee(
-            @ToolParam(description = "Numeric id of the employee to move") Long employeeId,
-            @ToolParam(description = "Numeric id of the destination department") Long targetDepartmentId) {
+            @McpToolParam(description = "Numeric id of the employee to move") Long employeeId,
+            @McpToolParam(description = "Numeric id of the destination department") Long targetDepartmentId) {
         return employeeService.transfer(employeeId, targetDepartmentId);
     }
 }
 ```
 
-```java
-@Configuration
-public class McpServerConfig {
+The Spring AI annotation scanner finds `@McpTool` methods on Spring beans, builds each tool's JSON input schema from
+the method signature and `@McpToolParam` descriptions (`LocalDate` becomes `"format": "date"`, enums become
+`enum` lists), and registers them with the `McpSyncServer`. No registration bean is needed. Update tools take
+optional fields and merge them with the current record, so the model only sends what changes.
 
-    @Bean
-    ToolCallbackProvider employeeDepartmentTools(EmployeeMcpTools employeeTools,
-                                                 DepartmentMcpTools departmentTools) {
-        return MethodToolCallbackProvider.builder()
-                .toolObjects(employeeTools, departmentTools)
-                .build();
-    }
-}
-```
-
-Spring AI builds each tool's JSON input schema from the method signature and `@ToolParam` descriptions. The MCP
-auto-configuration registers every `ToolCallbackProvider` bean with the `McpSyncServer`.
+Service methods are `@Validated` with `@Valid` request records, so MCP calls get the same Bean Validation as REST
+requests. A snapshot of every tool's name, description, hints and schema is kept in
+`src/test/resources/mcp/tools-snapshot.json`, and a test fails if it changes unexpectedly.
 
 ### 8.4 MCP session lifecycle (Streamable HTTP)
 
@@ -618,7 +620,7 @@ sequenceDiagram
 flowchart TD
     A["tools/call arrives"] --> B{"Arguments match<br/>input schema?"}
     B -- no --> E1["JSON-RPC error -32602<br/>Invalid params"]
-    B -- yes --> C["Invoke @Tool method"]
+    B -- yes --> C["Invoke @McpTool method"]
     C --> D{"Exception thrown?"}
     D -- no --> OK["CallToolResult<br/>isError=false, JSON text content"]
     D -- "NotFoundException" --> E2["CallToolResult isError=true<br/>Employee 99 not found. Use search_employees to find valid ids."]
@@ -649,9 +651,8 @@ flowchart LR
     P2 -. "tells the model to use" .-> T2["get_department_summary, get_department_employees"]
 ```
 
-Registered as `List<McpServerFeatures.SyncResourceSpecification>` and `List<McpServerFeatures.SyncPromptSpecification>`
-beans, which the Spring AI auto-configuration picks up. Spring AI 1.1's `@McpResource` / `@McpPrompt` annotations are
-an alternative.
+Implemented with `@McpResource` (`OrgResources`) and `@McpPrompt` / `@McpArg` (`OrgPrompts`). The roster URI
+contains a `{code}` variable, so it is published as a resource *template* (`resources/templates/list`).
 
 ### 8.8 Transport configuration
 
@@ -760,7 +761,7 @@ flowchart LR
     API --> DB[("DB")]
 ```
 
-The `@Tool` classes stay the same, but they call a `RestClient`-based `EmployeeApiClient` instead of the service. The
+The `@McpTool` classes stay the same, but they call a `RestClient`-based `EmployeeApiClient` instead of the service. The
 gateway must translate HTTP 4xx `ProblemDetail` responses into `isError` tool results. Cost: an extra network hop,
 two deployables and two error mappings. This repo uses the in-process design (ADR-01). The plan structures the code
 so the gateway can be split out later without rewriting the tools.
@@ -813,3 +814,20 @@ flowchart BT
 | Prompt | A reusable, parameterised prompt template the user picks |
 | Streamable HTTP | MCP transport over a single HTTP endpoint (POST for requests, optional SSE stream for responses) |
 | STDIO | MCP transport where the host launches the server and talks over stdin/stdout |
+
+---
+
+## 15. Implementation notes: where the build differs from the draft
+
+| Area | Draft assumption | As built | Why |
+|---|---|---|---|
+| Versions | Boot 3.5 + Spring AI 1.1 | **Boot 4.1.1 + Spring AI 2.0.1** (MCP SDK 2.0, Jackson 3, Hibernate 7) | start.spring.io no longer offers Boot 3.5. Boot 4 moved test annotations (`org.springframework.boot.webmvc.test…`, `…data.jpa.test…`) and `PropertyReferenceException` (`org.springframework.data.core`). |
+| Tool API | `@Tool` + `ToolCallbackProvider` bean | **`@McpTool` / `@McpToolParam`** scanned automatically | Publishes MCP tool annotations (read-only / destructive hints). |
+| Transport default | `protocol` defaults to Streamable HTTP | **Must set `spring.ai.mcp.server.protocol: STREAMABLE` explicitly** | Without it the auto-configuration activates the legacy SSE transport and `/mcp` returns 404 (found during Phase 3 smoke testing). |
+| Validation | Controllers only | **Also `@Validated` services** | An MCP contract test showed invalid emails were accepted through tools. |
+| Search | JPQL with nullable parameters | **JPA Specification** (`EmployeeSpecifications`) | Avoids null-parameter type inference problems on PostgreSQL. |
+| Manager mapping | `@OneToOne` | **`@ManyToOne`** on `Department.manager` | Simpler lazy loading. Each department still has at most one manager. |
+| Timestamps | `TIMESTAMP` | **`TIMESTAMP WITH TIME ZONE`** | `Instant` maps to `timestamptz` in Hibernate 7, so `ddl-auto: validate` passes on PostgreSQL. |
+| Security | Key always required | **Required only when `APP_API_KEY` is set** | Zero-setup local demo, still bound to 127.0.0.1. Compose refuses to start without a key. |
+| Observability | Metrics as an idea | **`mcp.tool.calls` timer** (tags `tool`, `outcome`) via `McpToolMetricsAspect`, plus one log line per call | |
+| STDIO state | Not considered | In-memory H2 means each STDIO launch has its own data | Use the `postgres` profile to share state between transports. |
