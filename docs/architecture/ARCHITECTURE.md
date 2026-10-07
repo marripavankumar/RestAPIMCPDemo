@@ -139,52 +139,48 @@ The same JAR runs in two modes:
 ## 5. Component view (hexagonal layering)
 
 ```mermaid
-flowchart LR
-    subgraph Inbound["Inbound adapters"]
-        DC["DepartmentController"]
-        EC["EmployeeController"]
-        DT["DepartmentMcpTools<br/>@McpTool methods"]
-        ET["EmployeeMcpTools<br/>@McpTool methods"]
-        RES["OrgResources + OrgPrompts<br/>@McpResource / @McpPrompt"]
-        GEH["GlobalExceptionHandler<br/>ProblemDetail"]
+flowchart TB
+    subgraph Entry["Entry points"]
+        subgraph EntryRow[" "]
+            direction LR
+            MVC["Spring MVC<br/>/api/v1/**"]
+            TR["MCP transport<br/>Streamable HTTP /mcp or STDIO"] --> MCPS["McpSyncServer<br/>specs from annotation scanner"]
+        end
+    end
+
+    subgraph Inbound["Inbound adapters (no business logic)"]
+        subgraph InRow[" "]
+            direction LR
+            DC["DepartmentController"] ~~~ EC["EmployeeController"] ~~~ GEH["GlobalExceptionHandler<br/>ProblemDetail"]
+            DT["DepartmentMcpTools<br/>@McpTool"] ~~~ ET["EmployeeMcpTools<br/>@McpTool"] ~~~ RES["OrgResources + OrgPrompts<br/>@McpResource / @McpPrompt"]
+        end
     end
 
     subgraph Core["Application core"]
-        DS["DepartmentService"]
-        ES["EmployeeService"]
-        MAP["Mappers<br/>entity to DTO records"]
-        VAL["Bean Validation<br/>Jakarta constraints"]
-        EXC["Domain exceptions<br/>NotFound / Conflict / BusinessRule"]
+        subgraph CoreRow[" "]
+            direction LR
+            DS["DepartmentService"] ~~~ ES["EmployeeService"] ~~~ RULES["@Validated DTO records<br/>NotFound / Conflict / BusinessRule"]
+        end
     end
 
     subgraph Outbound["Outbound adapters"]
-        DR["DepartmentRepository"]
-        ER["EmployeeRepository"]
+        subgraph OutRow[" "]
+            direction LR
+            DR["DepartmentRepository"] ~~~ ER["EmployeeRepository<br/>+ EmployeeSpecifications"]
+        end
     end
 
-    subgraph Framework["Spring AI MCP auto-configuration"]
-        TCP["Annotation scanner<br/>builds tool, resource, prompt specs"]
-        MCPS["McpSyncServer"]
-        TR["Transport provider<br/>Streamable HTTP or STDIO"]
-    end
+    DB[("H2 / PostgreSQL")]
 
-    DC --> DS
-    EC --> ES
-    DT --> DS
-    ET --> ES
-    RES --> DS
-    DS --> DR
-    ES --> ER
-    ES --> DR
-    DS --> MAP
-    ES --> MAP
-    DT -. "scanned by" .-> TCP
-    ET -. "scanned by" .-> TCP
-    RES -. "scanned by" .-> TCP
-    TCP --> MCPS
-    MCPS --> TR
-    DC -. "errors" .-> GEH
-    EC -. "errors" .-> GEH
+    Entry -- "HTTP requests and MCP tool / resource / prompt calls" --> Inbound
+    Inbound -- "one service call per request" --> Core
+    Core -- "Spring Data JPA" --> Outbound
+    Outbound -- "JDBC" --> DB
+
+    style EntryRow fill:none,stroke:none
+    style InRow fill:none,stroke:none
+    style CoreRow fill:none,stroke:none
+    style OutRow fill:none,stroke:none
 ```
 
 **Rule:** controllers and MCP tool classes contain no business logic. They validate the input shape, call one service
