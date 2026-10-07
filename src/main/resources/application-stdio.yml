@@ -1,0 +1,14 @@
+# STDIO transport for hosts that launch the server as a local process (e.g. Claude Desktop).
+# stdout is the JSON-RPC channel, so nothing else may be written to it: no web server,
+# no banner, and logs go to a file (see logback-spring.xml).
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+  ai:
+    mcp:
+      server:
+        stdio: true
+logging:
+  file:
+    name: ${java.io.tmpdir}/rest-api-mcp-demo-stdio.log
