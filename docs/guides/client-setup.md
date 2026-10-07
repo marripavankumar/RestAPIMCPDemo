@@ -58,7 +58,9 @@ in headless mode (`claude -p ... --mcp-config <file>`) against the containerized
 ## Claude Desktop (STDIO)
 
 Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or
-`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS). If Claude Desktop came from the Microsoft
+Store, the Windows file is `%LOCALAPPDATA%PackagesClaude_pzs8sxrjxfjjcLocalCacheRoamingClaudeclaude_desktop_config.json`.
+Add the `mcpServers` key next to the existing settings. Forward slashes work in Windows paths and avoid JSON escaping:
 
 ```json
 {
@@ -75,7 +77,8 @@ Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or
 }
 ```
 
-If `java` isn't on the PATH, use the full path to a JDK 21 `java.exe`. Restart Claude Desktop. The tools show up in
+If `java` isn't on the PATH, use the full path to a JDK 21 `java.exe`, e.g. `"command": "C:/Users/<you>/.jdks/ms-21.0.12.1/bin/java.exe"`.
+Don't run `mvnw clean` while Claude Desktop is open, because it deletes the JAR the app launches. Restart Claude Desktop. The tools show up in
 the tools menu. Logs go to `%TEMP%\rest-api-mcp-demo-stdio.log`.
 
 Or connect Claude Desktop to the running HTTP server through the `mcp-remote` bridge:
