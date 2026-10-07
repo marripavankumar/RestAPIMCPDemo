@@ -119,7 +119,10 @@ claude mcp add --transport http emp-dept http://localhost:8080/mcp --header "X-A
 APP_API_KEY=change-me docker compose up --build
 ```
 
-Starts PostgreSQL 16 and the app on `127.0.0.1:8080` with the `postgres` profile.
+Starts PostgreSQL 16 and the app on `127.0.0.1:8080` with the `postgres` profile. Podman works too
+(`podman compose up --build`); this setup was verified with Podman 5.8.
+
+The compose file refuses to run without `APP_API_KEY`, and that includes `down`: `APP_API_KEY=x docker compose down -v`.
 
 ## Tests
 

@@ -830,4 +830,5 @@ flowchart BT
 | Timestamps | `TIMESTAMP` | **`TIMESTAMP WITH TIME ZONE`** | `Instant` maps to `timestamptz` in Hibernate 7, so `ddl-auto: validate` passes on PostgreSQL. |
 | Security | Key always required | **Required only when `APP_API_KEY` is set** | Zero-setup local demo, still bound to 127.0.0.1. Compose refuses to start without a key. |
 | Observability | Metrics as an idea | **`mcp.tool.calls` timer** (tags `tool`, `outcome`) via `McpToolMetricsAspect`, plus one log line per call | |
+| Verification | Unit + integration tests | Also run end-to-end: container image on **PostgreSQL 16 via Podman** (migrations, `ddl-auto: validate`, search, transfer, 401 without key), and **Claude Code** calling the tools through MCP (read, write, business-error paths) | Docker Desktop not required; Podman with compose works as-is. |
 | STDIO state | Not considered | In-memory H2 means each STDIO launch has its own data | Use the `postgres` profile to share state between transports. |

@@ -46,6 +46,15 @@ claude mcp list
 
 Try: *"Which department has the highest average salary?"* or `/mcp` to see the server's status.
 
+With an API key, add `"headers": {"X-API-KEY": "<key>"}` to the server entry. Verified on 2026-10-07 with Claude Code 2.1.292
+in headless mode (`claude -p ... --mcp-config <file>`) against the containerized server on PostgreSQL:
+
+| Prompt | Tools called | Result |
+|---|---|---|
+| Which department has the highest average salary, and who manages it? | `list_departments`, `get_department_summary` ×4 | "Engineering, 137,500, managed by Asha Rao" (correct) |
+| Move Sneha Kulkarni to Engineering | `search_employees`, `list_departments`, `transfer_employee` | Tool error relayed: TERMINATED employees can't be transferred |
+| Move Meera Iyer to Sales | `search_employees`, `list_departments`, `transfer_employee` | Transferred; confirmed via REST |
+
 ## Claude Desktop (STDIO)
 
 Edit `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or
