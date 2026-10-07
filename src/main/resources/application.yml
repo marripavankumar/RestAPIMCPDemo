@@ -14,3 +14,22 @@ spring:
   h2:
     console:
       enabled: true
+  ai:
+    mcp:
+      server:
+        name: employee-department-mcp
+        version: 1.0.0
+        type: SYNC
+        # Must be set explicitly: without it Spring AI 2.0 falls back to the legacy SSE transport.
+        protocol: STREAMABLE
+        instructions: >
+          Tools for an organisation's employees and departments. Look up ids with
+          list_departments or search_employees before calling tools that need an id.
+          Confirm with the user before calling delete_* tools or transfer_employee.
+        capabilities:
+          tool: true
+          resource: true
+          prompt: true
+          completion: false
+        streamable-http:
+          mcp-endpoint: /mcp
