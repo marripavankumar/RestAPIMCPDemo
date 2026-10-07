@@ -135,5 +135,6 @@ spring:
 |---|---|
 | `404` on `/mcp` | `spring.ai.mcp.server.protocol: STREAMABLE` is missing. Spring AI 2.0 falls back to SSE without it. |
 | STDIO client says "invalid JSON" | Something is writing to stdout. Make sure the `stdio` profile is active so the banner and console logging are off. |
+| Claude Desktop shows no tools and `mcpServers` has vanished from the config | Desktop rewrites `claude_desktop_config.json` when it quits, dropping edits made while it was running. Quit it fully (tray → Quit, or end every `Claude.exe` under `WindowsApps\Claude_*`), edit the file, then start it again. Or edit through **Settings → Developer → Edit Config**. |
 | Claude Desktop shows no tools | Check that the JAR path is absolute and `java` is JDK 21+, then read `%TEMP%\rest-api-mcp-demo-stdio.log` |
 | `401` (after Phase 7) | Send the `X-API-KEY` header. See the security section of the README. |
