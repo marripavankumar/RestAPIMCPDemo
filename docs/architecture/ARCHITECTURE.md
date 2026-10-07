@@ -704,6 +704,104 @@ logging:
     name: ${java.io.tmpdir}/rest-api-mcp-demo.log
 ```
 
+### 8.9 Where the MCP client and MCP server run
+
+```mermaid
+flowchart LR
+    subgraph Cloud["Anthropic cloud"]
+        LLM["Claude model<br/>decides which tool to call"]
+    end
+
+    subgraph PC["Your Windows PC"]
+        subgraph Desktop["Claude Desktop app = MCP host"]
+            UI1["Chat window"]
+            MC1["MCP client<br/>one per configured server"]
+        end
+
+        subgraph Child["Child process of Claude Desktop (stdio profile)"]
+            MS1["MCP server<br/>McpSyncServer + @McpTool classes"]
+            SV1["Service layer"]
+            DB1[("H2 in-memory")]
+        end
+
+        subgraph Code["Claude Code / VS Code = MCP host"]
+            MC2["MCP client"]
+        end
+
+        subgraph Boot["Spring Boot app on localhost:8080"]
+            REST["REST controllers<br/>/api/v1/**"]
+            MS2["MCP server<br/>/mcp endpoint"]
+            SV2["Service layer"]
+            DB2[("H2 / PostgreSQL")]
+        end
+
+        PM["Postman / curl / browser"]
+    end
+
+    UI1 <--> LLM
+    MC2 <--> LLM
+    MC1 -- "JSON-RPC over stdin / stdout" --> MS1
+    MS1 --> SV1 --> DB1
+    MC2 -- "JSON-RPC over HTTP POST /mcp" --> MS2
+    PM -- "HTTP JSON GET /api/v1/..." --> REST
+    MS2 --> SV2
+    REST --> SV2
+    SV2 --> DB2
+```
+
+| Piece | Runs in | Notes |
+|---|---|---|
+| MCP host | The AI app: Claude Desktop, Claude Code, VS Code | What the user interacts with |
+| MCP client | Inside the host, one per configured server | Speaks JSON-RPC to the server |
+| MCP server | Our Spring Boot app | Started by Claude Desktop as a child process (STDIO), or running on its own at `localhost:8080/mcp` (Streamable HTTP) |
+| Claude model | Anthropic cloud | Chooses tools, but never contacts the MCP server directly; every call goes through the host's MCP client |
+
+A STDIO server started by Claude Desktop is a separate process with its own in-memory database, so it doesn't share data
+with the HTTP server on port 8080 unless both use the `postgres` profile.
+
+### 8.10 How MCP calls and REST calls reach the same logic
+
+The MCP server does **not** call the REST API. MCP tools and REST controllers are both thin adapters over the same
+service layer, and tools call it with an in-process Java method call (ADR-01).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as You
+    participant H as Claude Desktop<br/>(MCP host + MCP client)
+    participant L as Claude model<br/>(Anthropic cloud)
+    participant S as MCP server<br/>(@McpTool in Spring Boot)
+    participant SV as EmployeeService
+    participant R as REST controller<br/>/api/v1
+    participant DB as Database
+
+    U->>H: "Move Meera Iyer to Sales"
+    H->>L: prompt + list of MCP tools
+    L-->>H: call search_employees(name="Meera")
+    H->>S: tools/call search_employees (JSON-RPC)
+    S->>SV: search(...)  in-process Java call
+    SV->>DB: SELECT
+    S-->>H: result JSON
+    H->>L: tool result
+    L-->>H: call transfer_employee(3, 4)
+    H->>U: Allow transfer_employee?
+    U-->>H: Allow
+    H->>S: tools/call transfer_employee
+    S->>SV: transfer(3, 4)  in-process Java call
+    SV->>DB: UPDATE employee
+    S-->>H: updated employee JSON
+    H->>L: tool result
+    L-->>H: "Meera Iyer is now in Sales"
+    H-->>U: answer
+
+    Note over S,R: The MCP server never calls the REST controller.<br/>Both are adapters over the same service layer.
+    U->>R: (separately) PUT /api/v1/employees/3/department/4
+    R->>SV: transfer(3, 4)  same method, same rules
+```
+
+Steps 19–20 make the same change through REST. Both paths end in `EmployeeService.transfer`, so validation and business
+rules are identical. §11 shows the alternative where an MCP server calls the REST API over HTTP.
+
 ---
 
 ## 9. Security architecture
@@ -752,9 +850,14 @@ Use this when the REST service already exists, is owned by another team, or is w
 
 ```mermaid
 flowchart LR
-    MC["MCP clients"] -- "MCP Streamable HTTP" --> GW["mcp-gateway<br/>Spring AI MCP server"]
-    GW -- "RestClient + X-API-KEY<br/>HTTP JSON" --> API["employee-dept REST API"]
-    API --> DB[("DB")]
+    MC["MCP client<br/>in Claude Desktop / Code"] -- "MCP JSON-RPC" --> GW
+    subgraph GWApp["mcp-gateway app (separate JVM)"]
+        GW["MCP server<br/>@McpTool classes"] --> RC["RestClient<br/>EmployeeApiClient"]
+    end
+    RC -- "HTTP GET / PUT /api/v1/...<br/>X-API-KEY header" --> API
+    subgraph ApiApp["employee-dept REST API"]
+        API["REST controllers"] --> SVC["Service layer"] --> DB[("Database")]
+    end
 ```
 
 The `@McpTool` classes stay the same, but they call a `RestClient`-based `EmployeeApiClient` instead of the service. The
