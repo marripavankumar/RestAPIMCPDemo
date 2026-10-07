@@ -1,0 +1,406 @@
+[ {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Make an employee the manager of a department. The employee must already belong to that department. Returns the updated department.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Numeric department id (see list_departments)",
+        "format" : "int64",
+        "type" : "integer"
+      },
+      "employeeId" : {
+        "description" : "Numeric id of the employee who becomes manager",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "departmentId", "employeeId" ],
+    "type" : "object"
+  },
+  "name" : "assign_department_manager"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : false,
+    "idempotentHint" : false,
+    "openWorldHint" : false
+  },
+  "description" : "Create a new department. The code is stored in upper case and must be unique, as must the name. Returns the created department with its new id.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "code" : {
+        "description" : "Short unique code, letters/digits/underscore, e.g. OPS",
+        "type" : "string"
+      },
+      "location" : {
+        "description" : "City or office location",
+        "type" : "string"
+      },
+      "name" : {
+        "description" : "Unique display name, e.g. Operations",
+        "type" : "string"
+      }
+    },
+    "required" : [ "code", "name" ],
+    "type" : "object"
+  },
+  "name" : "create_department"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : false,
+    "idempotentHint" : false,
+    "openWorldHint" : false
+  },
+  "description" : "Hire a new employee. The email must be unique. Status starts as ACTIVE. Optionally place them in a department (use list_departments for the id). Returns the created employee with its new id.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Department id to place the employee in",
+        "format" : "int64",
+        "type" : "integer"
+      },
+      "email" : {
+        "description" : "Unique work email address",
+        "type" : "string"
+      },
+      "firstName" : {
+        "description" : "First name",
+        "type" : "string"
+      },
+      "hireDate" : {
+        "description" : "Hire date, ISO format yyyy-MM-dd, not in the future",
+        "format" : "date",
+        "type" : "string"
+      },
+      "jobTitle" : {
+        "description" : "Job title, e.g. Software Engineer",
+        "type" : "string"
+      },
+      "lastName" : {
+        "description" : "Last name",
+        "type" : "string"
+      },
+      "salary" : {
+        "description" : "Annual salary, greater than 0",
+        "type" : "number"
+      }
+    },
+    "required" : [ "firstName", "lastName", "email", "jobTitle", "salary", "hireDate" ],
+    "type" : "object"
+  },
+  "name" : "create_employee"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : true,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Permanently delete a department. Only works when the department has no employees; transfer them first with transfer_employee. Confirm with the user before calling.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Numeric department id (see list_departments)",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "departmentId" ],
+    "type" : "object"
+  },
+  "name" : "delete_department"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : true,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Permanently delete an employee record. If they manage a department, that department is left without a manager. Confirm with the user before calling.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "employeeId" : {
+        "description" : "Numeric employee id (see search_employees)",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "employeeId" ],
+    "type" : "object"
+  },
+  "name" : "delete_employee"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : true,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Get one department by its numeric id, including manager and headcount.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Numeric department id (see list_departments)",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "departmentId" ],
+    "type" : "object"
+  },
+  "name" : "get_department"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : true,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "List all employees who belong to a department. Returns full employee records.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Numeric department id (see list_departments)",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "departmentId" ],
+    "type" : "object"
+  },
+  "name" : "get_department_employees"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : true,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Summarise a department: headcount, total and average salary, and manager name. Use this for payroll or size questions instead of adding up employees yourself.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Numeric department id (see list_departments)",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "departmentId" ],
+    "type" : "object"
+  },
+  "name" : "get_department_summary"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : true,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Get one employee by numeric id, including job, salary, status and department.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "employeeId" : {
+        "description" : "Numeric employee id (see search_employees)",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "employeeId" ],
+    "type" : "object"
+  },
+  "name" : "get_employee"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : true,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "List every department with its id, code, name, location, manager and headcount. Use this to find a department id or code before calling other department tools.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "name" : "list_departments"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : true,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Find employees by part of their name, department and/or status. All filters are optional; with none you get everyone. Results are paged and sorted by last name.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "departmentId" : {
+        "description" : "Only employees of this department id",
+        "format" : "int64",
+        "type" : "integer"
+      },
+      "name" : {
+        "description" : "Part of the first or last name, case-insensitive",
+        "type" : "string"
+      },
+      "page" : {
+        "description" : "Zero-based page number, default 0",
+        "format" : "int32",
+        "type" : "integer"
+      },
+      "size" : {
+        "description" : "Page size 1-100, default 20",
+        "format" : "int32",
+        "type" : "integer"
+      },
+      "status" : {
+        "description" : "Only employees with this status",
+        "enum" : [ "ACTIVE", "ON_LEAVE", "TERMINATED" ],
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "name" : "search_employees"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : false,
+    "idempotentHint" : false,
+    "openWorldHint" : false
+  },
+  "description" : "Move an employee to a different department. Find the employee id with search_employees and the department id with list_departments first. TERMINATED employees cannot be moved. Returns the updated employee.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "employeeId" : {
+        "description" : "Numeric id of the employee to move",
+        "format" : "int64",
+        "type" : "integer"
+      },
+      "targetDepartmentId" : {
+        "description" : "Numeric id of the destination department",
+        "format" : "int64",
+        "type" : "integer"
+      }
+    },
+    "required" : [ "employeeId", "targetDepartmentId" ],
+    "type" : "object"
+  },
+  "name" : "transfer_employee"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Change a department's code, name or location. Only the fields you pass are changed. Returns the updated department.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "code" : {
+        "description" : "New unique code",
+        "type" : "string"
+      },
+      "departmentId" : {
+        "description" : "Numeric department id (see list_departments)",
+        "format" : "int64",
+        "type" : "integer"
+      },
+      "location" : {
+        "description" : "New location",
+        "type" : "string"
+      },
+      "name" : {
+        "description" : "New unique name",
+        "type" : "string"
+      }
+    },
+    "required" : [ "departmentId" ],
+    "type" : "object"
+  },
+  "name" : "update_department"
+}, {
+  "annotations" : {
+    "title" : "",
+    "readOnlyHint" : false,
+    "destructiveHint" : false,
+    "idempotentHint" : true,
+    "openWorldHint" : false
+  },
+  "description" : "Change an employee's details. Only the fields you pass are changed. To move someone to another department prefer transfer_employee. Returns the updated employee.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "email" : {
+        "description" : "New unique email",
+        "type" : "string"
+      },
+      "employeeId" : {
+        "description" : "Numeric employee id (see search_employees)",
+        "format" : "int64",
+        "type" : "integer"
+      },
+      "firstName" : {
+        "description" : "New first name",
+        "type" : "string"
+      },
+      "hireDate" : {
+        "description" : "New hire date, yyyy-MM-dd",
+        "format" : "date",
+        "type" : "string"
+      },
+      "jobTitle" : {
+        "description" : "New job title",
+        "type" : "string"
+      },
+      "lastName" : {
+        "description" : "New last name",
+        "type" : "string"
+      },
+      "salary" : {
+        "description" : "New annual salary, greater than 0",
+        "type" : "number"
+      },
+      "status" : {
+        "description" : "New status",
+        "enum" : [ "ACTIVE", "ON_LEAVE", "TERMINATED" ],
+        "type" : "string"
+      }
+    },
+    "required" : [ "employeeId" ],
+    "type" : "object"
+  },
+  "name" : "update_employee"
+} ]

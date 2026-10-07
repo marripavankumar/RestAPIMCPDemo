@@ -1,0 +1,6 @@
+# Legacy HTTP+SSE transport for older MCP clients: GET /sse + POST /mcp/message.
+spring:
+  ai:
+    mcp:
+      server:
+        protocol: SSE

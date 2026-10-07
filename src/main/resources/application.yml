@@ -1,0 +1,61 @@
+server:
+  # Local-only by default; the docker profile binds to all interfaces.
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
+spring:
+  application:
+    name: rest-api-mcp-demo
+  datasource:
+    url: jdbc:h2:mem:empdept;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  h2:
+    console:
+      enabled: true
+  ai:
+    mcp:
+      server:
+        name: employee-department-mcp
+        version: 1.0.0
+        type: SYNC
+        # Must be set explicitly: without it Spring AI 2.0 falls back to the legacy SSE transport.
+        protocol: STREAMABLE
+        instructions: >
+          Tools for an organisation's employees and departments. Look up ids with
+          list_departments or search_employees before calling tools that need an id.
+          Confirm with the user before calling delete_* tools or transfer_employee.
+        capabilities:
+          tool: true
+          resource: true
+          prompt: true
+          completion: false
+        streamable-http:
+          mcp-endpoint: /mcp
+
+app:
+  security:
+    # Shared key for /api/** and /mcp. Empty = authentication disabled (local demo only).
+    api-key: ${APP_API_KEY:}
+  mcp:
+    # Browser Origin hosts allowed to call /mcp (DNS-rebinding protection).
+    allowed-origin-hosts: localhost,127.0.0.1,[::1]
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Employee & Department REST API and MCP server

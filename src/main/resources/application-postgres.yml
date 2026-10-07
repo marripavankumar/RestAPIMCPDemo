@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/empdept}
+    username: ${DB_USER:empdept}
+    password: ${DB_PASSWORD:empdept}
+  h2:
+    console:
+      enabled: false

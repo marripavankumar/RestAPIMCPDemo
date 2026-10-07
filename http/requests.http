@@ -1,0 +1,30 @@
+### List departments
+GET http://localhost:8080/api/v1/departments
+
+### Department summary
+GET http://localhost:8080/api/v1/departments/1/summary
+
+### Department members
+GET http://localhost:8080/api/v1/departments/1/employees
+
+### Create department
+POST http://localhost:8080/api/v1/departments
+Content-Type: application/json
+
+{"code": "OPS", "name": "Operations", "location": "Chennai"}
+
+### Search employees
+GET http://localhost:8080/api/v1/employees?name=rao&status=ACTIVE&page=0&size=10&sort=lastName
+
+### Create employee
+POST http://localhost:8080/api/v1/employees
+Content-Type: application/json
+
+{"firstName": "Lena", "lastName": "Paul", "email": "lena.paul@example.com", "jobTitle": "Ops Lead",
+ "salary": 120000, "hireDate": "2026-01-05", "departmentId": 1}
+
+### Transfer employee 3 to department 3
+PUT http://localhost:8080/api/v1/employees/3/department/3
+
+### Assign manager
+PUT http://localhost:8080/api/v1/departments/1/manager/2
